@@ -1,6 +1,3 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
-
 using System;
 using Microsoft.AspNetCore.SignalR;
 using Akinox.AspNetCore.SignalR.Msmq;
@@ -32,7 +29,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             return AddSignalRMsmq(signalrBuilder, o =>
             {
-                o.Configuration = ConfigurationOptions.Parse(msmqConnectionString);
+                o.ConnectionString = msmqConnectionString;
             });
         }
 
@@ -60,7 +57,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             return AddSignalRMsmq(signalrBuilder, o =>
             {
-                o.Configuration = ConfigurationOptions.Parse(msmqConnectionString);
+                o.ConnectionString = msmqConnectionString;
                 configure(o);
             });
         }
