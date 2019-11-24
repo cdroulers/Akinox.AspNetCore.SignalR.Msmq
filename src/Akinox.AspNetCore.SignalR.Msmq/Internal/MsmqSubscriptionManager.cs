@@ -6,18 +6,18 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Akinox.AspNetCore.SignalR.Msmq.Internal
 {
-    internal class MsmqSubscriptionManager
+    public class MsmqSubscriptionManager
     {
-        private readonly ConcurrentDictionary<string, HubConnectionStore> _subscriptions = new ConcurrentDictionary<string, HubConnectionStore>(StringComparer.Ordinal);
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        private readonly ConcurrentDictionary<string, HubConnectionStore> subscriptions = new ConcurrentDictionary<string, HubConnectionStore>(StringComparer.Ordinal);
+        private readonly SemaphoreSlim subscriptionLock = new SemaphoreSlim(1, 1);
 
         public async Task AddSubscriptionAsync(string id, HubConnectionContext connection, Func<string, HubConnectionStore, Task> subscribeMethod)
         {
-            await _lock.WaitAsync();
+            await this.subscriptionLock.WaitAsync();
 
             try
             {
-                var subscription = _subscriptions.GetOrAdd(id, _ => new HubConnectionStore());
+                var subscription = this.subscriptions.GetOrAdd(id, _ => new HubConnectionStore());
 
                 subscription.Add(connection);
 
@@ -29,17 +29,17 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
             }
             finally
             {
-                _lock.Release();
+                this.subscriptionLock.Release();
             }
         }
 
         public async Task RemoveSubscriptionAsync(string id, HubConnectionContext connection, Func<string, Task> unsubscribeMethod)
         {
-            await _lock.WaitAsync();
+            await this.subscriptionLock.WaitAsync();
 
             try
             {
-                if (!_subscriptions.TryGetValue(id, out var subscription))
+                if (!this.subscriptions.TryGetValue(id, out var subscription))
                 {
                     return;
                 }
@@ -48,13 +48,13 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
 
                 if (subscription.Count == 0)
                 {
-                    _subscriptions.TryRemove(id, out _);
+                    this.subscriptions.TryRemove(id, out _);
                     await unsubscribeMethod(id);
                 }
             }
             finally
             {
-                _lock.Release();
+                this.subscriptionLock.Release();
             }
         }
     }

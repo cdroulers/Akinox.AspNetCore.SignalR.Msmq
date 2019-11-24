@@ -1,6 +1,6 @@
 namespace Akinox.AspNetCore.SignalR.Msmq.Internal
 {
-    internal readonly struct MsmqGroupCommand
+    public readonly struct MsmqGroupCommand
     {
         /// <summary>
         /// Gets the ID of the group command.
@@ -29,11 +29,11 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
 
         public MsmqGroupCommand(int id, string serverName, GroupAction action, string groupName, string connectionId)
         {
-            Id = id;
-            ServerName = serverName;
-            Action = action;
-            GroupName = groupName;
-            ConnectionId = connectionId;
+            this.Id = id;
+            this.ServerName = serverName;
+            this.Action = action;
+            this.GroupName = groupName;
+            this.ConnectionId = connectionId;
         }
     }
 }

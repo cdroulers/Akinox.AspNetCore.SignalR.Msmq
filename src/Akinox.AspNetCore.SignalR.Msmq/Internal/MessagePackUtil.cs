@@ -58,7 +58,7 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
         private static ArraySegment<byte> GetArray(ReadOnlyMemory<byte> data)
         {
             var isArray = MemoryMarshal.TryGetArray(data, out var array);
-            Debug.Assert(isArray);
+            Debug.Assert(isArray, "Should be array");
             return array;
         }
     }

@@ -10,62 +10,71 @@ using Microsoft.AspNetCore.SignalR.Protocol;
 
 namespace Akinox.AspNetCore.SignalR.Msmq.Internal
 {
-    internal class MsmqProtocol
+    /// <summary>
+    /// The Msmq Protocol:
+    /// * The message type is known in advance because messages are sent to different channels based on type
+    /// * Invocations are sent to the All, Group, Connection and User channels
+    /// * Group Commands are sent to the GroupManagement channel
+    /// * Acks are sent to the Acknowledgement channel.
+    /// * See the Write[type] methods for a description of the protocol for each in-depth.
+    /// * The "Variable length integer" is the length-prefixing format used by BinaryReader/BinaryWriter:
+    ///   * https://docs.microsoft.com/en-us/dotnet/api/system.io.binarywriter.write?view=netstandard-2.0
+    /// * The "Length prefixed string" is the string format used by BinaryReader/BinaryWriter:
+    ///   * A 7-bit variable length integer encodes the length in bytes, followed by the encoded string in UTF-8.
+    ///   </summary>
+    public class MsmqProtocol
     {
-        private readonly IReadOnlyList<IHubProtocol> _protocols;
+        private readonly IReadOnlyList<IHubProtocol> protocols;
 
         public MsmqProtocol(IReadOnlyList<IHubProtocol> protocols)
         {
-            _protocols = protocols;
+            this.protocols = protocols;
         }
 
-        // The Msmq Protocol:
-        // * The message type is known in advance because messages are sent to different channels based on type
-        // * Invocations are sent to the All, Group, Connection and User channels
-        // * Group Commands are sent to the GroupManagement channel
-        // * Acks are sent to the Acknowledgement channel.
-        // * See the Write[type] methods for a description of the protocol for each in-depth.
-        // * The "Variable length integer" is the length-prefixing format used by BinaryReader/BinaryWriter:
-        //   * https://docs.microsoft.com/en-us/dotnet/api/system.io.binarywriter.write?view=netstandard-2.0
-        // * The "Length prefixed string" is the string format used by BinaryReader/BinaryWriter:
-        //   * A 7-bit variable length integer encodes the length in bytes, followed by the encoded string in UTF-8.
-
-        public byte[] WriteInvocation(string methodName, object[] args) =>
-            WriteInvocation(methodName, args, excludedConnectionIds: null);
-
-        public byte[] WriteInvocation(string methodName, object[] args, IReadOnlyList<string> excludedConnectionIds)
+        public byte[] WriteInvocation(
+            string methodName,
+            object[] args,
+            IReadOnlyList<string> connections,
+            IReadOnlyList<string> groups,
+            IReadOnlyList<string> users,
+            IReadOnlyList<string> excludedConnectionIds)
         {
             // Written as a MessagePack 'arr' containing at least these items:
             // * A MessagePack 'arr' of 'str's representing the excluded ids
             // * [The output of WriteSerializedHubMessage, which is an 'arr']
             // Any additional items are discarded.
-
             var writer = MemoryBufferWriter.Get();
 
             try
             {
-                MessagePackBinary.WriteArrayHeader(writer, 2);
-                if (excludedConnectionIds != null && excludedConnectionIds.Count > 0)
-                {
-                    MessagePackBinary.WriteArrayHeader(writer, excludedConnectionIds.Count);
-                    foreach (var id in excludedConnectionIds)
-                    {
-                        MessagePackBinary.WriteString(writer, id);
-                    }
-                }
-                else
-                {
-                    MessagePackBinary.WriteArrayHeader(writer, 0);
-                }
+                MessagePackBinary.WriteArrayHeader(writer, 5);
 
-                WriteSerializedHubMessage(writer,
-                    new SerializedHubMessage(new InvocationMessage(methodName, args)));
+                WriteList(excludedConnectionIds, writer);
+                WriteList(connections, writer);
+                WriteList(groups, writer);
+                WriteList(users, writer);
+
+                this.WriteSerializedHubMessage(writer, new SerializedHubMessage(new InvocationMessage(methodName, args)));
                 return writer.ToArray();
             }
             finally
             {
                 MemoryBufferWriter.Return(writer);
             }
+        }
+
+        public MsmqInvocation ReadInvocation(ReadOnlyMemory<byte> data)
+        {
+            // See WriteInvocation for the format
+            ValidateArraySize(ref data, 5, "Invocation");
+            var excludedConnectionIds = ReadList(ref data);
+            var connections = ReadList(ref data);
+            var groups = ReadList(ref data);
+            var users = ReadList(ref data);
+
+            // Read payload
+            var message = ReadSerializedHubMessage(ref data);
+            return new MsmqInvocation(connections, groups, users, excludedConnectionIds, message);
         }
 
         public byte[] WriteGroupCommand(MsmqGroupCommand command)
@@ -77,7 +86,6 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
             // * A 'str': The group name
             // * A 'str': The connection Id
             // Any additional items are discarded.
-
             var writer = MemoryBufferWriter.Get();
             try
             {
@@ -96,50 +104,6 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
             }
         }
 
-        public byte[] WriteAck(int messageId)
-        {
-            // Written as a MessagePack 'arr' containing at least these items:
-            // * An 'int': The Id of the command being acknowledged.
-            // Any additional items are discarded.
-
-            var writer = MemoryBufferWriter.Get();
-            try
-            {
-                MessagePackBinary.WriteArrayHeader(writer, 1);
-                MessagePackBinary.WriteInt32(writer, messageId);
-
-                return writer.ToArray();
-            }
-            finally
-            {
-                MemoryBufferWriter.Return(writer);
-            }
-        }
-
-        public MsmqInvocation ReadInvocation(ReadOnlyMemory<byte> data)
-        {
-            // See WriteInvocation for the format
-            ValidateArraySize(ref data, 2, "Invocation");
-
-            // Read excluded Ids
-            IReadOnlyList<string> excludedConnectionIds = null;
-            var idCount = MessagePackUtil.ReadArrayHeader(ref data);
-            if (idCount > 0)
-            {
-                var ids = new string[idCount];
-                for (var i = 0; i < idCount; i++)
-                {
-                    ids[i] = MessagePackUtil.ReadString(ref data);
-                }
-
-                excludedConnectionIds = ids;
-            }
-
-            // Read payload
-            var message = ReadSerializedHubMessage(ref data);
-            return new MsmqInvocation(message, excludedConnectionIds);
-        }
-
         public MsmqGroupCommand ReadGroupCommand(ReadOnlyMemory<byte> data)
         {
             // See WriteGroupCommand for format.
@@ -154,6 +118,25 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
             return new MsmqGroupCommand(id, serverName, action, groupName, connectionId);
         }
 
+        public byte[] WriteAck(int messageId)
+        {
+            // Written as a MessagePack 'arr' containing at least these items:
+            // * An 'int': The Id of the command being acknowledged.
+            // Any additional items are discarded.
+            var writer = MemoryBufferWriter.Get();
+            try
+            {
+                MessagePackBinary.WriteArrayHeader(writer, 1);
+                MessagePackBinary.WriteInt32(writer, messageId);
+
+                return writer.ToArray();
+            }
+            finally
+            {
+                MemoryBufferWriter.Return(writer);
+            }
+        }
+
         public int ReadAck(ReadOnlyMemory<byte> data)
         {
             // See WriteAck for format
@@ -165,16 +148,15 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
         {
             // Written as a MessagePack 'map' where the keys are the name of the protocol (as a MessagePack 'str')
             // and the values are the serialized blob (as a MessagePack 'bin').
+            MessagePackBinary.WriteMapHeader(stream, this.protocols.Count);
 
-            MessagePackBinary.WriteMapHeader(stream, _protocols.Count);
-
-            foreach (var protocol in _protocols)
+            foreach (var protocol in this.protocols)
             {
                 MessagePackBinary.WriteString(stream, protocol.Name);
 
                 var serialized = message.GetSerializedMessage(protocol);
                 var isArray = MemoryMarshal.TryGetArray(serialized, out var array);
-                Debug.Assert(isArray);
+                Debug.Assert(isArray, "should be array");
                 MessagePackBinary.WriteBytes(stream, array.Array, array.Offset, array.Count);
             }
         }
@@ -202,6 +184,40 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
                 throw new InvalidDataException($"Insufficient items in {messageType} array.");
             }
         }
+
+        private static void WriteList(IReadOnlyList<string> items, MemoryBufferWriter writer)
+        {
+            if (items != null && items.Count > 0)
+            {
+                MessagePackBinary.WriteArrayHeader(writer, items.Count);
+                foreach (var id in items)
+                {
+                    MessagePackBinary.WriteString(writer, id);
+                }
+            }
+            else
+            {
+                MessagePackBinary.WriteArrayHeader(writer, 0);
+            }
+        }
+
+        private static IReadOnlyList<string> ReadList(ref ReadOnlyMemory<byte> data)
+        {
+            // Read excluded Ids
+            IReadOnlyList<string> excludedConnectionIds = null;
+            var idCount = MessagePackUtil.ReadArrayHeader(ref data);
+            if (idCount > 0)
+            {
+                var ids = new string[idCount];
+                for (var i = 0; i < idCount; i++)
+                {
+                    ids[i] = MessagePackUtil.ReadString(ref data);
+                }
+
+                excludedConnectionIds = ids;
+            }
+
+            return excludedConnectionIds;
+        }
     }
 }
-

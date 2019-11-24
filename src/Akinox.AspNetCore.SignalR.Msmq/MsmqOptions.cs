@@ -10,6 +10,8 @@ namespace Akinox.AspNetCore.SignalR.Msmq
     /// </summary>
     public class MsmqOptions
     {
+        public string ApplicationName { get; set; }
+
         public string ConnectionString { get; set; }
     }
 }

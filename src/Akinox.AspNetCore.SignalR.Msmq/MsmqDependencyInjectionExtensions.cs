@@ -1,13 +1,13 @@
 using System;
-using Microsoft.AspNetCore.SignalR;
 using Akinox.AspNetCore.SignalR.Msmq;
+using Microsoft.AspNetCore.SignalR;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
     /// Extension methods for configuring Msmq-based scale-out for a SignalR Server in an <see cref="ISignalRServerBuilder" />.
     /// </summary>
-    public static class StackExchangeMsmqDependencyInjectionExtensions
+    public static class MsmqDependencyInjectionExtensions
     {
         /// <summary>
         /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared Msmq server.

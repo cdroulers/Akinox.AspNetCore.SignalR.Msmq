@@ -8,95 +8,95 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Internal
     // We'd end up creating separate instances of all the LoggerMessage.Define values for each Hub.
     internal static class MsmqLog
     {
-        private static readonly Action<ILogger, string, string, Exception> _connectingToEndpoints =
-            LoggerMessage.Define<string, string>(LogLevel.Information, new EventId(1, "ConnectingToEndpoints"), "Connecting to MSMQ endpoints: {Endpoints}. Using Server Name: {ServerName}");
+        private static readonly Action<ILogger, string, string, Exception> ConnectingToEndpointsValue =
+            LoggerMessage.Define<string, string>(LogLevel.Information, new EventId(1, "ConnectingToEndpoints"), "Connecting to MSMQ endpoints: {Endpoints}. Using Application Name: {ApplicationName}");
 
-        private static readonly Action<ILogger, Exception> _connected =
+        private static readonly Action<ILogger, Exception> ConnectedValue =
             LoggerMessage.Define(LogLevel.Information, new EventId(2, "Connected"), "Connected to Msmq.");
 
-        private static readonly Action<ILogger, string, Exception> _subscribing =
+        private static readonly Action<ILogger, string, Exception> SubscribingValue =
             LoggerMessage.Define<string>(LogLevel.Trace, new EventId(3, "Subscribing"), "Subscribing to channel: {Channel}.");
 
-        private static readonly Action<ILogger, string, Exception> _receivedFromChannel =
+        private static readonly Action<ILogger, string, Exception> ReceivedFromChannelValue =
             LoggerMessage.Define<string>(LogLevel.Trace, new EventId(4, "ReceivedFromChannel"), "Received message from Msmq channel {Channel}.");
 
-        private static readonly Action<ILogger, string, Exception> _publishToChannel =
+        private static readonly Action<ILogger, string, Exception> PublishToChannelValue =
             LoggerMessage.Define<string>(LogLevel.Trace, new EventId(5, "PublishToChannel"), "Publishing message to Msmq channel {Channel}.");
 
-        private static readonly Action<ILogger, string, Exception> _unsubscribe =
+        private static readonly Action<ILogger, string, Exception> UnsubscribeValue =
             LoggerMessage.Define<string>(LogLevel.Trace, new EventId(6, "Unsubscribe"), "Unsubscribing from channel: {Channel}.");
 
-        private static readonly Action<ILogger, Exception> _notConnected =
+        private static readonly Action<ILogger, Exception> NotConnectedValue =
             LoggerMessage.Define(LogLevel.Error, new EventId(7, "Connected"), "Not connected to Msmq.");
 
-        private static readonly Action<ILogger, Exception> _connectionRestored =
+        private static readonly Action<ILogger, Exception> ConnectionRestoredValue =
             LoggerMessage.Define(LogLevel.Information, new EventId(8, "ConnectionRestored"), "Connection to Msmq restored.");
 
-        private static readonly Action<ILogger, Exception> _connectionFailed =
+        private static readonly Action<ILogger, Exception> ConnectionFailedValue =
             LoggerMessage.Define(LogLevel.Error, new EventId(9, "ConnectionFailed"), "Connection to Msmq failed.");
 
-        private static readonly Action<ILogger, Exception> _failedWritingMessage =
+        private static readonly Action<ILogger, Exception> FailedWritingMessageValue =
             LoggerMessage.Define(LogLevel.Debug, new EventId(10, "FailedWritingMessage"), "Failed writing message.");
 
-        private static readonly Action<ILogger, Exception> _internalMessageFailed =
+        private static readonly Action<ILogger, Exception> InternalMessageFailedValue =
             LoggerMessage.Define(LogLevel.Warning, new EventId(11, "InternalMessageFailed"), "Error processing message for internal server message.");
 
         public static void ConnectingToEndpoints(ILogger logger, string connectionString, string serverName)
         {
             if (logger.IsEnabled(LogLevel.Information))
             {
-                _connectingToEndpoints(logger, connectionString, serverName, null);
+                ConnectingToEndpointsValue(logger, connectionString, serverName, null);
             }
         }
 
         public static void Connected(ILogger logger)
         {
-            _connected(logger, null);
+            ConnectedValue(logger, null);
         }
 
         public static void Subscribing(ILogger logger, string channelName)
         {
-            _subscribing(logger, channelName, null);
+            SubscribingValue(logger, channelName, null);
         }
 
         public static void ReceivedFromChannel(ILogger logger, string channelName)
         {
-            _receivedFromChannel(logger, channelName, null);
+            ReceivedFromChannelValue(logger, channelName, null);
         }
 
         public static void PublishToChannel(ILogger logger, string channelName)
         {
-            _publishToChannel(logger, channelName, null);
+            PublishToChannelValue(logger, channelName, null);
         }
 
         public static void Unsubscribe(ILogger logger, string channelName)
         {
-            _unsubscribe(logger, channelName, null);
+            UnsubscribeValue(logger, channelName, null);
         }
 
         public static void NotConnected(ILogger logger)
         {
-            _notConnected(logger, null);
+            NotConnectedValue(logger, null);
         }
 
         public static void ConnectionRestored(ILogger logger)
         {
-            _connectionRestored(logger, null);
+            ConnectionRestoredValue(logger, null);
         }
 
         public static void ConnectionFailed(ILogger logger, Exception exception)
         {
-            _connectionFailed(logger, exception);
+            ConnectionFailedValue(logger, exception);
         }
 
         public static void FailedWritingMessage(ILogger logger, Exception exception)
         {
-            _failedWritingMessage(logger, exception);
+            FailedWritingMessageValue(logger, exception);
         }
 
         public static void InternalMessageFailed(ILogger logger, Exception exception)
         {
-            _internalMessageFailed(logger, exception);
+            InternalMessageFailedValue(logger, exception);
         }
 
         // This isn't DefineMessage-based because it's just the simple TextWriter logging from ConnectionMultiplexer
