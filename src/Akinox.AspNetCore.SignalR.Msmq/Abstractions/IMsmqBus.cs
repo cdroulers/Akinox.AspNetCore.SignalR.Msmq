@@ -6,7 +6,7 @@ namespace Akinox.AspNetCore.SignalR.Msmq.Abstractions
     {
         Task PublishAsync(string queueName, byte[] message);
 
-        Task<string[]> GetAllQueueNames();
+        Task<string[]> GetAllQueueNamesAsync();
 
         Task<IMsmqChannel> SubscribeAsync(string queueName);
     }

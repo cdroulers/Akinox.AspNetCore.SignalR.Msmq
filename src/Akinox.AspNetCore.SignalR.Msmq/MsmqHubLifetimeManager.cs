@@ -23,9 +23,10 @@ namespace Akinox.AspNetCore.SignalR.Msmq
         private readonly MsmqProtocol protocol;
         private readonly SemaphoreSlim connectionLock = new SemaphoreSlim(1);
         private readonly IMsmqBus msmqBus;
-        private IMsmqChannel msmqChannel;
         private readonly MsmqQueues queues;
         private readonly AckHandler ackHandler;
+
+        private IMsmqChannel msmqChannel;
         private int internalId;
 
         public MsmqHubLifetimeManager(
@@ -39,6 +40,7 @@ namespace Akinox.AspNetCore.SignalR.Msmq
             this.protocol = new MsmqProtocol(hubProtocolResolver.AllProtocols);
             this.msmqBus = msmqBus;
             this.queues = new MsmqQueues(this.options.ApplicationName);
+            this.ackHandler = new AckHandler();
 
             MsmqLog.ConnectingToEndpoints(this.logger, this.options.ConnectionString, this.options.ApplicationName);
             _ = this.EnsureMsmqServerConnection();
@@ -207,7 +209,7 @@ namespace Akinox.AspNetCore.SignalR.Msmq
         private async Task PublishAsync(byte[] payload)
         {
             await this.EnsureMsmqServerConnection();
-            var channels = await this.msmqBus.GetAllQueueNames();
+            var channels = await this.msmqBus.GetAllQueueNamesAsync();
             foreach (var channel in channels.Where(x => x.StartsWith(this.queues.Invocations(string.Empty))))
             {
                 MsmqLog.PublishToChannel(this.logger, channel);
@@ -217,7 +219,7 @@ namespace Akinox.AspNetCore.SignalR.Msmq
 
         private async Task PublishGroupCommandAsync(byte[] payload)
         {
-            var channels = await this.msmqBus.GetAllQueueNames();
+            var channels = await this.msmqBus.GetAllQueueNamesAsync();
             foreach (var channel in channels.Where(x => x.StartsWith(this.queues.GroupManagement(string.Empty))))
             {
                 MsmqLog.PublishToChannel(this.logger, channel);
